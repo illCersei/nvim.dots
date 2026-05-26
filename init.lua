@@ -4,5 +4,7 @@ require("options")
 require("keymaps")
 require("commands")
 require("pack")
+require("treesitter")
+require("lsp")
 
-vim.cmd.colorscheme("moonfly")
+vim.cmd.colorscheme("nightfox")
