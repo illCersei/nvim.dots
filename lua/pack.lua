@@ -86,12 +86,56 @@ require("mini.completion").setup({
 
 --- mini snippets ---
 local MiniSnippets = require("mini.snippets")
+
+-- по умолчанию expand() матчит сниппеты даже на пустом месте (это нужно для
+-- попапа автодополнения) - для <Tab> нужен матч только если реально что-то
+-- напечатано перед курсором, иначе <Tab> будет всегда "разворачивать"
+local match_strict = function(snips)
+    return MiniSnippets.default_match(snips, { pattern_fuzzy = "%S+" })
+end
+
 MiniSnippets.setup({
     snippets = {
         MiniSnippets.gen_loader.from_lang(), -- loads friendly-snippets
     },
+    -- отключаем дефолтные <C-l>/<C-h>/<C-j> - переезжаем на Tab/S-Tab ниже
+    mappings = { expand = "", jump_next = "", jump_prev = "" },
+    expand = { match = match_strict },
 })
 MiniSnippets.start_lsp_server({ match = false })
+
+-- "Supertab"-style <Tab>/<S-Tab>: сначала листает попап автодополнения
+-- (как в Atom), потом разворачивает/прыгает по сниппету, и только если
+-- ни то ни другое не активно - вставляет обычный таб
+local function keycode(str)
+    return vim.api.nvim_replace_termcodes(str, true, true, true)
+end
+
+vim.keymap.set("i", "<Tab>", function()
+    if vim.fn.pumvisible() == 1 then
+        return keycode("<C-n>")
+    end
+    if #MiniSnippets.expand({ insert = false }) > 0 then
+        vim.schedule(MiniSnippets.expand)
+        return ""
+    end
+    if MiniSnippets.session.get() ~= nil then
+        MiniSnippets.session.jump("next")
+        return ""
+    end
+    return keycode("<Tab>")
+end, { expr = true, desc = "Next completion / expand snippet / jump next tabstop" })
+
+vim.keymap.set("i", "<S-Tab>", function()
+    if vim.fn.pumvisible() == 1 then
+        return keycode("<C-p>")
+    end
+    if MiniSnippets.session.get() ~= nil then
+        MiniSnippets.session.jump("prev")
+        return ""
+    end
+    return keycode("<S-Tab>")
+end, { expr = true, desc = "Prev completion / jump prev tabstop" })
 
 --- mini diff and fugitive ---
 local MiniDiff = require("mini.diff")
