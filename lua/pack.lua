@@ -93,6 +93,24 @@ MiniSnippets.setup({
 })
 MiniSnippets.start_lsp_server({ match = false })
 
+-- undo/выход в normal-режим на середине сниппета оставляет "зависшие"
+-- виртуальные плейсхолдеры (точки •/∎), т.к. сессия сниппета не следит за
+-- undo - принудительно закрываем все активные сессии при выходе в normal
+vim.api.nvim_create_autocmd("User", {
+    pattern = "MiniSnippetsSessionStart",
+    callback = function()
+        vim.api.nvim_create_autocmd("ModeChanged", {
+            pattern = "*:n",
+            once = true,
+            callback = function()
+                while MiniSnippets.session.get() do
+                    MiniSnippets.session.stop()
+                end
+            end,
+        })
+    end,
+})
+
 --- mini diff and fugitive ---
 local MiniDiff = require("mini.diff")
 MiniDiff.setup({
