@@ -6,5 +6,6 @@ require("commands")
 require("pack")
 require("treesitter")
 require("lsp")
+require("cf")
 
 vim.cmd.colorscheme("nightfox")
