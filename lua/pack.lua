@@ -71,10 +71,6 @@ require("mini.surround").setup({
 -- | `gsn` | Update n_lines |
 -- | `l` / `n` | as suffix for prev/next |
 
---- mini statusline ---
-require("mini.statusline").setup()
-vim.opt.showmode = false -- режим показывает статуслайн
-
 --- mini picker ---
 local MiniPick = require("mini.pick")
 local MiniExtra = require("mini.extra")
