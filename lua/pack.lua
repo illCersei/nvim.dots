@@ -49,16 +49,31 @@ require("mini.cmdline").setup({
 })
 
 --- mini surround ---
-require("mini.surround").setup()
--- Default Keymaps
--- | `sa` | Add surrounding or Direct with 'saiw' |
--- | `sd` | Delete surrounding |
--- | `sr` | Replace surrounding |
--- | `sf` | Find surrounding (right) |
--- | `sF` | Find surrounding (left) |
--- | `sh` | Highlight surrounding |
--- | `sn` | Update n_lines |
+-- префикс gs вместо s, чтобы не ломать встроенный `s`
+require("mini.surround").setup({
+    mappings = {
+        add = "gsa",
+        delete = "gsd",
+        find = "gsf",
+        find_left = "gsF",
+        highlight = "gsh",
+        replace = "gsr",
+        update_n_lines = "gsn",
+    },
+})
+-- Keymaps
+-- | `gsa` | Add surrounding or Direct with 'gsaiw' |
+-- | `gsd` | Delete surrounding |
+-- | `gsr` | Replace surrounding |
+-- | `gsf` | Find surrounding (right) |
+-- | `gsF` | Find surrounding (left) |
+-- | `gsh` | Highlight surrounding |
+-- | `gsn` | Update n_lines |
 -- | `l` / `n` | as suffix for prev/next |
+
+--- mini statusline ---
+require("mini.statusline").setup()
+vim.opt.showmode = false -- режим показывает статуслайн
 
 --- mini picker ---
 local MiniPick = require("mini.pick")
