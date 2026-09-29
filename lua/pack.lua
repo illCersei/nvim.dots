@@ -16,9 +16,18 @@ require("nightfox").setup({
   },
 })
 
+--- mini icons ---
+-- до mini.files: он берёт иконки из MiniIcons
+require("mini.icons").setup()
+MiniIcons.mock_nvim_web_devicons()
+
 -- mini files ----
 local MiniFiles = require("mini.files")
 MiniFiles.setup({
+    windows = {
+        preview = true,
+        width_preview = 50,
+    },
     mappings = {
         go_in = "<CR>",
         go_in_plus = "L",

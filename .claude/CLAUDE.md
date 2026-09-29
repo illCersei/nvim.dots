@@ -31,11 +31,11 @@ Neovim **0.12.5**, плагин-менеджер — встроенный `vim.p
 - `guicursor = ""` — курсор всегда блок
 - `clipboard += unnamedplus`, `undofile` в `stdpath("data")/undodir`, без swap/backup
 - `ignorecase` + `smartcase`, `inccommand = split`, `splitbelow`/`splitright`, `scrolloff = 8`
-- `completeopt = menuone,noselect,fuzzy,nosort`, `signcolumn = yes`, `colorcolumn = "0"`
+- `completeopt = menuone,noselect,fuzzy,nosort`, `signcolumn = yes`, `colorcolumn = "0"`, `winborder = rounded`
 
 ## Плагины (`pack.lua`)
 - Темы: **nightfox** (активна), vim-moonfly-colors, tokyonight (установлены, не используются)
-- `mini.nvim`: files, notify (только текст), cmdline (autocorrect off), surround,
+- `mini.nvim`: icons (+ mock nvim-web-devicons), files (preview справа), notify (только текст), cmdline (autocorrect off), surround,
   pick + extra, pairs, completion (LSP), snippets (+ friendly-snippets, LSP-сервер сниппетов), diff (git)
 - nvim-treesitter (main), nvim-lspconfig, mason.nvim, vim-fugitive
 - Автокоманда: при выходе в Normal принудительно закрываются сессии mini.snippets
