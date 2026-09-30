@@ -31,11 +31,11 @@ Neovim **0.12.5**, плагин-менеджер — встроенный `vim.p
 - `guicursor = ""` — курсор всегда блок
 - `clipboard += unnamedplus`, `undofile` в `stdpath("data")/undodir`, без swap/backup
 - `ignorecase` + `smartcase`, `inccommand = split`, `splitbelow`/`splitright`, `scrolloff = 8`
-- `completeopt = menuone,noselect,fuzzy,nosort`, `signcolumn = yes`, `colorcolumn = "0"`, `winborder = rounded`
+- `completeopt = menuone,noselect,fuzzy,nosort`, `signcolumn = yes`, `colorcolumn = "0"`, `winborder = rounded`, `winbar = "%=%m %f"` (имя файла справа в каждом окне)
 
 ## Плагины (`pack.lua`)
 - Темы: **nightfox** (активна), vim-moonfly-colors, tokyonight (установлены, не используются)
-- `mini.nvim`: icons (+ mock nvim-web-devicons), files (preview справа), notify (только текст), cmdline (autocorrect off), surround,
+- `mini.nvim`: icons (+ mock nvim-web-devicons), files (preview справа), tabline, bracketed, bufremove, notify (только текст), cmdline (autocorrect off), surround,
   pick + extra, pairs, completion (LSP), snippets (+ friendly-snippets, LSP-сервер сниппетов), diff (git)
 - nvim-treesitter (main), nvim-lspconfig, mason.nvim, vim-fugitive
 - Автокоманда: при выходе в Normal принудительно закрываются сессии mini.snippets
@@ -53,10 +53,11 @@ Neovim **0.12.5**, плагин-менеджер — встроенный `vim.p
 **Плагины (`pack.lua`):**
 - `-` — mini.files; `<leader>-` — mini.files на текущем файле
   (внутри: `<CR>` войти, `L` войти+, `_` выйти, `H` выйти+)
-- `<leader>pf` файлы, `<leader>ps` grep слова под курсором, `<leader>vh` help,
+- `<leader>pf` файлы, `<leader>pb` открытые буферы, `<leader>ps` grep слова под курсором, `<leader>vh` help,
   `<leader>xx` диагностика, `<leader>pk` keymaps — всё через mini.pick/extra
 - Surround на префиксе **`gs`**: `gsa` добавить, `gsd` удалить, `gsr` заменить,
   `gsf`/`gsF` найти, `gsh` подсветить, `gsn` n_lines (встроенный `s` свободен)
+- `]b`/`[b` (и прочие `]x`/`[x` из mini.bracketed) — след./пред. буфер; `<leader>bd` — закрыть буфер, не закрывая окно
 - `<leader>gg` — fugitive на весь экран в новой вкладке; `<leader>gd` — `Gvdiffsplit`
 
 **LSP (`lsp.lua`):** `gd` definition, `<leader>f` format, `<leader>e` float диагностики.

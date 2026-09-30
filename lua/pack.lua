@@ -42,6 +42,14 @@ vim.keymap.set("n", "<leader>-", function()
     MiniFiles.reveal_cwd()
 end, { desc = "Toggle into currently opened file" })
 
+--- mini tabline / bracketed / bufremove ---
+-- вкладки буферов сверху, ]b/[b для переключения, закрытие без ломки окон
+require("mini.tabline").setup()
+require("mini.bracketed").setup()
+require("mini.bufremove").setup()
+
+vim.keymap.set("n", "<leader>bd", function() MiniBufremove.delete() end, { desc = "Close buffer (keep window)" })
+
 ---- mini notify ----
 require("mini.notify").setup({
 	-- only show messages
@@ -88,7 +96,8 @@ MiniExtra.setup()
 
 -- keymaps
 vim.keymap.set("n", "<leader>pf", function() MiniPick.builtin.files() end, { desc = "Mini File Picker" })
-vim.keymap.set("n", "<leader>ps", function() MiniPick.builtin.grep({ pattern = vim.fn.expand("<cword>") }) end, { desc = "Grep word/Search word" })
+vim.keymap.set("n", "<leader>pb", function() MiniPick.builtin.buffers() end, { desc = "Mini Buffer Picker" })
+vim.keymap.set("n", "<leader>ps",function() MiniPick.builtin.grep({ pattern = vim.fn.expand("<cword>") }) end, { desc = "Grep word/Search word" })
 vim.keymap.set("n", "<leader>vh", function() MiniPick.builtin.help() end, { desc = "Mini Help" })
 
 vim.keymap.set("n", "<leader>xx", function() MiniExtra.pickers.diagnostic() end, { desc = "Mini Picker Diagnostics" })
