@@ -7,7 +7,6 @@ vim.pack.add({
     { src = "https://github.com/nvim-treesitter/nvim-treesitter", branch = "main" },
     "https://github.com/neovim/nvim-lspconfig",
     "https://github.com/mason-org/mason.nvim",
-    "https://github.com/tpope/vim-fugitive",
 })
 
 require("nightfox").setup({
@@ -140,11 +139,34 @@ vim.api.nvim_create_autocmd("User", {
     end,
 })
 
---- mini diff and fugitive ---
+--- mini diff and lazygit ---
 local MiniDiff = require("mini.diff")
 MiniDiff.setup({
 	source = MiniDiff.gen_source.git({ index = false }),
 })
 
-vim.keymap.set("n", "<leader>gg", "<cmd>tabnew | Git | only<cr>", { desc = "Fugitive Full Page New Tab" })
-vim.keymap.set("n", "<leader>gd", "<cmd>Gvdiffsplit<CR>", { desc = "Git diff split", })
+-- lazygit в плавающем окне, закрывается само после выхода (q)
+vim.keymap.set("n", "<leader>gg", function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local w = math.floor(vim.o.columns * 0.9)
+    local h = math.floor(vim.o.lines * 0.9)
+    vim.api.nvim_open_win(buf, true, {
+        relative = "editor", width = w, height = h,
+        col = math.floor((vim.o.columns - w) / 2),
+        row = math.floor((vim.o.lines - h) / 2),
+        border = "rounded",
+    })
+    vim.fn.jobstart({ "lazygit" }, {
+        term = true,
+        on_exit = function()
+            if vim.api.nvim_buf_is_valid(buf) then
+                vim.api.nvim_buf_delete(buf, { force = true })
+            end
+            vim.cmd.checktime() -- перечитать файлы, если lazygit их поменял
+        end,
+    })
+    vim.cmd.startinsert()
+end, { desc = "LazyGit (float)" })
+
+-- изменения прямо в буфере (вместо fugitive :Gvdiffsplit)
+vim.keymap.set("n", "<leader>gd", function() MiniDiff.toggle_overlay() end, { desc = "Toggle git diff overlay" })
