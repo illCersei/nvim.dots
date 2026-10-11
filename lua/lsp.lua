@@ -1,7 +1,23 @@
 require("mason").setup()
 
 vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { desc = "Go to definition" })
-vim.keymap.set("n", "<leader>f", vim.lsp.buf.format, { desc = "Format Local buffer" })
+-- фронт форматирует prettierd, остальное как раньше через LSP
+require("conform").setup({
+    formatters_by_ft = {
+        vue = { "prettierd" },
+        javascript = { "prettierd" },
+        typescript = { "prettierd" },
+        javascriptreact = { "prettierd" },
+        typescriptreact = { "prettierd" },
+        css = { "prettierd" },
+        scss = { "prettierd" },
+        html = { "prettierd" },
+        json = { "prettierd" },
+    },
+    default_format_opts = { lsp_format = "fallback" },
+})
+
+vim.keymap.set("n", "<leader>f", function() require("conform").format() end, { desc = "Format Local buffer" })
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show line diagnostics" })
 
 vim.diagnostic.config({ virtual_text = true })
@@ -19,11 +35,34 @@ vim.lsp.config("lua_ls", {
     },
 })
 
+-- vue: vue_ls работает только в паре с vtsls, который подхватывает
+-- @vue/typescript-plugin из пакета vue-language-server (ставится через mason)
+vim.lsp.config("vtsls", {
+    filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact", "vue" },
+    settings = {
+        vtsls = {
+            tsserver = {
+                globalPlugins = {
+                    {
+                        name = "@vue/typescript-plugin",
+                        location = vim.fn.stdpath("data")
+                            .. "/mason/packages/vue-language-server/node_modules/@vue/language-server",
+                        languages = { "vue" },
+                        configNamespace = "typescript",
+                    },
+                },
+            },
+        },
+    },
+})
+
 vim.lsp.enable({
     "lua_ls",
     "marksman",
     "gopls",
     "rust_analyzer",
     "clangd",
+    "vtsls",
+    "vue_ls",
 })
 
