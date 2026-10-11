@@ -56,6 +56,16 @@ vim.lsp.config("vtsls", {
     },
 })
 
+-- схемы для package.json, tsconfig.json и т.д. (автодополнение ключей)
+vim.lsp.config("jsonls", {
+    settings = {
+        json = {
+            schemas = require("schemastore").json.schemas(),
+            validate = { enable = true },
+        },
+    },
+})
+
 vim.lsp.enable({
     "lua_ls",
     "marksman",
@@ -64,5 +74,11 @@ vim.lsp.enable({
     "clangd",
     "vtsls",
     "vue_ls",
+    "eslint",
+    "emmet_language_server",
+    "tailwindcss", -- включается только в проектах с tailwind
+    "cssls",
+    "html",
+    "jsonls",
 })
 

@@ -4,6 +4,8 @@ vim.keymap.set("x", "p", [["_dP]], { desc = "Paste over selection without losing
 
 vim.keymap.set({ "n", "v" }, "<leader>d", [["_d]], { desc = "Delete without yanking" })
 
+vim.keymap.set({ "n", "i", "x" }, "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
+
 vim.keymap.set("i", "<C-c>", "<Esc>")
 vim.keymap.set("n", "<C-c>", ":nohl<CR>", { desc = "Clear search highlighting", silent = true })
 

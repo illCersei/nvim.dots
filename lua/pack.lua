@@ -8,6 +8,9 @@ vim.pack.add({
     "https://github.com/neovim/nvim-lspconfig",
     "https://github.com/mason-org/mason.nvim",
     "https://github.com/stevearc/conform.nvim",
+    "https://github.com/windwp/nvim-ts-autotag",
+    "https://github.com/b0o/SchemaStore.nvim",
+    "https://github.com/mistweaverco/kulala.nvim",
 })
 
 require("nightfox").setup({
@@ -105,6 +108,27 @@ vim.keymap.set("n", "<leader>pk", function() MiniExtra.pickers.keymaps() end, { 
 
 --- mini pairs ---
 require("mini.pairs").setup()
+
+--- autotag ---
+-- <div> сам закрывается </div>, переименование открывающего тега меняет и закрывающий
+require("nvim-ts-autotag").setup()
+
+--- mini hipatterns ---
+-- #ff0000 подсвечивается своим цветом, TODO/FIXME/HACK/NOTE выделяются
+local hipatterns = require("mini.hipatterns")
+hipatterns.setup({
+    highlighters = {
+        fixme = { pattern = "%f[%w]()FIXME()%f[%W]", group = "MiniHipatternsFixme" },
+        hack = { pattern = "%f[%w]()HACK()%f[%W]", group = "MiniHipatternsHack" },
+        todo = { pattern = "%f[%w]()TODO()%f[%W]", group = "MiniHipatternsTodo" },
+        note = { pattern = "%f[%w]()NOTE()%f[%W]", group = "MiniHipatternsNote" },
+        hex_color = hipatterns.gen_highlighter.hex_color(),
+    },
+})
+
+--- kulala ---
+-- запросы к API из .http файлов (как REST Client в vscode), маппинги на <leader>R*
+require("kulala").setup({ global_keymaps = true })
 
 --- mini completions ---
 require("mini.completion").setup({
