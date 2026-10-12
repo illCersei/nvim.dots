@@ -70,7 +70,13 @@ function M.edit_input()
     vim.cmd("vsplit " .. vim.fn.fnameescape(input_file))
 end
 
-vim.keymap.set("n", "<leader>r", M.compile_and_run, { desc = "Compile & run CF solution" })
+-- <leader>r только в c++ файлах, в go он делает go run (golang.lua)
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "cpp",
+    callback = function(args)
+        vim.keymap.set("n", "<leader>r", M.compile_and_run, { buffer = args.buf, desc = "Compile & run CF solution" })
+    end,
+})
 vim.keymap.set("n", "<leader>i", M.edit_input, { desc = "Edit input.txt" })
 
 return M

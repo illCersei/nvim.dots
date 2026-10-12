@@ -13,8 +13,16 @@ require("conform").setup({
         scss = { "prettierd" },
         html = { "prettierd" },
         json = { "prettierd" },
+        -- goimports сам добавляет/убирает импорты, gofumpt - строгий gofmt
+        go = { "goimports", "gofumpt" },
     },
     default_format_opts = { lsp_format = "fallback" },
+    -- автоформат при сохранении только для go
+    format_on_save = function(buf)
+        if vim.bo[buf].filetype == "go" then
+            return { timeout_ms = 1000 }
+        end
+    end,
 })
 
 vim.keymap.set("n", "<leader>f", function() require("conform").format() end, { desc = "Format Local buffer" })
@@ -31,6 +39,20 @@ vim.lsp.config("lua_ls", {
     settings = {
         Lua = {
             diagnostics = { globals = { "vim" } },
+        },
+    },
+})
+
+vim.lsp.config("gopls", {
+    settings = {
+        gopls = {
+            staticcheck = true, -- дополнительные проверки (как отдельный линтер)
+            gofumpt = true, -- форматирование через LSP такое же, как в conform
+            usePlaceholders = true, -- при дополнении функции подставляет аргументы
+            analyses = {
+                unusedparams = true,
+                unusedvariable = true,
+            },
         },
     },
 })

@@ -58,4 +58,12 @@ end
 vim.keymap.set("n", "<leader>nd", M.toggle_dev, { desc = "npm run dev (toggle terminal)" })
 vim.keymap.set("n", "<leader>nk", M.stop_dev, { desc = "Kill npm dev server" })
 
+-- <leader>r в веб-файлах = то же, что <leader>nd (в c++ и go у него свои действия)
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "vue", "javascript", "typescript", "javascriptreact", "typescriptreact", "html", "css", "scss" },
+    callback = function(args)
+        vim.keymap.set("n", "<leader>r", M.toggle_dev, { buffer = args.buf, desc = "npm run dev (toggle terminal)" })
+    end,
+})
+
 return M
