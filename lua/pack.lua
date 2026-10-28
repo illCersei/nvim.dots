@@ -141,7 +141,13 @@ require("mini.completion").setup({
 local MiniSnippets = require("mini.snippets")
 MiniSnippets.setup({
     snippets = {
-        MiniSnippets.gen_loader.from_lang(), -- loads friendly-snippets
+        MiniSnippets.gen_loader.from_lang({ -- loads friendly-snippets
+            lang_patterns = {
+                -- .tsx: сниппеты ищутся по имени языка "tsx", а в friendly-snippets
+                -- их нет - подключаем ts + react (хуки и rafce лежат в react-es7)
+                tsx = { "**/typescript.json", "javascript/react-ts.json", "javascript/react-es7.json" },
+            },
+        }),
     },
 })
 MiniSnippets.start_lsp_server({ match = false })
