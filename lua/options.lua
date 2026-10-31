@@ -18,6 +18,8 @@ vim.opt.splitright = true
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
 vim.opt.laststatus = 3
+vim.opt.showmode = false
+vim.opt.cmdheight = 0
 
 vim.opt.swapfile = false
 vim.opt.backup = false

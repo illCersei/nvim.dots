@@ -14,6 +14,9 @@ vim.pack.add({
     "https://github.com/mistweaverco/kulala.nvim",
 })
 
+-- Overseer optional install: Neovim should still start if GitHub is unavailable.
+pcall(vim.pack.add, { "https://github.com/stevearc/overseer.nvim" })
+
 require("nightfox").setup({
   options = {
     transparent = true,
@@ -51,6 +54,81 @@ end, { desc = "Toggle into currently opened file" })
 require("mini.tabline").setup()
 require("mini.bracketed").setup()
 require("mini.bufremove").setup()
+
+--- overseer task runner and mini statusline ---
+local has_overseer, Overseer = pcall(require, "overseer")
+if has_overseer then
+    Overseer.setup({
+        task_list = { direction = "bottom" },
+    })
+end
+
+local MiniStatusline = require("mini.statusline")
+
+local function set_statusline_highlights()
+    local function copy_foreground(target, source, bold)
+        local source_hl = vim.api.nvim_get_hl(0, { name = source, link = false })
+        vim.api.nvim_set_hl(0, target, {
+            fg = source_hl.fg,
+            bg = "NONE",
+            bold = bold or false,
+        })
+    end
+
+    copy_foreground("CersStatusMode", "Normal", true)
+    copy_foreground("CersStatusInfo", "MiniStatuslineDevinfo")
+    copy_foreground("CersStatusServer", "DiagnosticOk", true)
+    copy_foreground("CersStatusFiletype", "MiniStatuslineFileinfo")
+    copy_foreground("CersStatusLocation", "Normal")
+    copy_foreground("StatusLine", "Normal")
+    copy_foreground("StatusLineNC", "Normal")
+    copy_foreground("MiniStatuslineInactive", "Normal")
+end
+
+set_statusline_highlights()
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = set_statusline_highlights,
+    desc = "Keep CERS statusline transparent",
+})
+
+local function npm_status()
+    if has_overseer then
+        local tasks = Overseer.list_tasks({ status = "RUNNING" })
+        for _, task in ipairs(tasks) do
+            if task.metadata.cers_npm_dev then
+                return "npm: RUNNING"
+            end
+        end
+    end
+    return vim.g.cers_npm_dev_running and "npm: RUNNING" or ""
+end
+
+MiniStatusline.setup({
+    content = {
+        active = function()
+            local mode = MiniStatusline.section_mode({ trunc_width = 120 })
+            local git = MiniStatusline.section_git({ trunc_width = 80, icon = "" })
+            local filetypes = {
+                javascript = "JS",
+                javascriptreact = "JSX",
+                typescript = "TS",
+                typescriptreact = "TSX",
+            }
+            local filetype = filetypes[vim.bo.filetype] or vim.bo.filetype:upper()
+            local location = string.format("%d:%d", vim.fn.line("."), vim.fn.col("."))
+
+            return MiniStatusline.combine_groups({
+                { hl = "CersStatusMode", strings = { mode } },
+                { hl = "CersStatusInfo", strings = { git } },
+                "%<",
+                "%=",
+                { hl = "CersStatusServer", strings = { npm_status() } },
+                { hl = "CersStatusFiletype", strings = { filetype } },
+                { hl = "CersStatusLocation", strings = { location } },
+            })
+        end,
+    },
+})
 
 --- dashboard ---
 require("dashboard").setup({
