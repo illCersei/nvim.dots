@@ -17,9 +17,16 @@ require("conform").setup({
         go = { "goimports", "gofumpt" },
     },
     default_format_opts = { lsp_format = "fallback" },
-    -- автоформат при сохранении только для go
+    -- автоформат при сохранении для Go, JS/TS, React и HTML
     format_on_save = function(buf)
-        if vim.bo[buf].filetype == "go" then
+        local ft = vim.bo[buf].filetype
+        if ft == "go"
+            or ft == "javascript"
+            or ft == "typescript"
+            or ft == "javascriptreact"
+            or ft == "typescriptreact"
+            or ft == "html"
+        then
             return { timeout_ms = 1000 }
         end
     end,
