@@ -1,3 +1,5 @@
+vim.g.cers_nvim_start_time = vim.uv.hrtime()
+
 require("vim._core.ui2").enable({})
 
 require("options")

@@ -58,11 +58,12 @@ require("dashboard").setup({
     config = {
         header = {
             "",
-            "  _   _ _____ _____ ___ __  __",
-            " | | | | ____|_   _|_ _| |  |",
-            " | | | |  _|   | |  | || |  | |",
-            " | | | | |___  | |  | || |  | |",
-            " |_| |_|_____| |_| |___|_|  |_|",
+            "  _____  ______  _____   _____",
+            " / ____| |  ____| |  __ \\ / ____|",
+            "| |      | |__   | |__) | (___",
+            "| |      |  __|  |  _  / \\___ \\ ",
+            "| |____  | |____ | | \\ \\ ____) |",
+            " \\_____| |______||_|  \\_\\_____/",
             "",
         },
         shortcut = {
@@ -91,7 +92,27 @@ require("dashboard").setup({
         packages = { enable = false },
         project = { enable = false },
         mru = { enable = true, limit = 8, icon = "  ", label = "Recent Files", cwd_only = false },
-        footer = { "Happy coding!" },
+        footer = function()
+            local version = vim.version()
+            local startup_ms = (vim.uv.hrtime() - vim.g.cers_nvim_start_time) / 1e6
+            local root = vim.fs.root(vim.uv.cwd(), { ".git" })
+            local branch = "not a Git repo"
+
+            if root then
+                local result = vim.system({ "git", "-C", root, "branch", "--show-current" }, { text = true }):wait()
+                if result.code == 0 and result.stdout ~= "" then
+                    branch = vim.trim(result.stdout)
+                else
+                    branch = "detached HEAD"
+                end
+            end
+
+            return {
+                "Neovim " .. version.major .. "." .. version.minor .. "." .. version.patch
+                    .. "  |  Startup " .. string.format("%.0f ms", startup_ms),
+                "Git branch: " .. branch,
+            }
+        end,
     },
 })
 
