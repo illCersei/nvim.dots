@@ -3,6 +3,7 @@ vim.pack.add({
     "https://github.com/EdenEast/nightfox.nvim",
     "https://github.com/folke/tokyonight.nvim",
     "https://github.com/nvim-mini/mini.nvim",
+    "https://github.com/nvimdev/dashboard-nvim",
     "https://github.com/rafamadriz/friendly-snippets",
     { src = "https://github.com/nvim-treesitter/nvim-treesitter", branch = "main" },
     "https://github.com/neovim/nvim-lspconfig",
@@ -50,6 +51,51 @@ end, { desc = "Toggle into currently opened file" })
 require("mini.tabline").setup()
 require("mini.bracketed").setup()
 require("mini.bufremove").setup()
+
+--- dashboard ---
+require("dashboard").setup({
+    theme = "hyper",
+    config = {
+        header = {
+            "",
+            "  _   _ _____ _____ ___ __  __",
+            " | | | | ____|_   _|_ _| |  |",
+            " | | | |  _|   | |  | || |  | |",
+            " | | | | |___  | |  | || |  | |",
+            " |_| |_|_____| |_| |___|_|  |_|",
+            "",
+        },
+        shortcut = {
+            {
+                icon = "  ",
+                desc = "Find File",
+                key = "f",
+                action = "lua require('mini.pick').builtin.files()",
+            },
+            {
+                desc = "New File",
+                key = "n",
+                action = "enew",
+            },
+            {
+                desc = "Edit Config",
+                key = "c",
+                action = "lua vim.cmd.edit(vim.fn.stdpath('config') .. '/init.lua')",
+            },
+            {
+                desc = "Quit",
+                key = "q",
+                action = "qa",
+            },
+        },
+        packages = { enable = false },
+        project = { enable = false },
+        mru = { enable = true, limit = 8, icon = "  ", label = "Recent Files", cwd_only = false },
+        footer = { "Happy coding!" },
+    },
+})
+
+vim.keymap.set("n", "<Esc>", "<cmd>Dashboard<CR>", { desc = "Open Dashboard" })
 
 vim.keymap.set("n", "<leader>bd", function() MiniBufremove.delete() end, { desc = "Close buffer (keep window)" })
 
