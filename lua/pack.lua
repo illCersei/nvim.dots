@@ -64,6 +64,7 @@ if has_overseer then
 end
 
 local MiniStatusline = require("mini.statusline")
+require("mini.git").setup()
 
 local function set_statusline_highlights()
     local function copy_foreground(target, source, bold)
@@ -103,6 +104,99 @@ local function npm_status()
     return vim.g.cers_npm_dev_running and "npm: RUNNING" or ""
 end
 
+local layout_socket
+local main_keyboard_name
+local pending_layouts = {}
+local shutting_down = false
+
+local function set_keyboard_layout(keymap)
+    if not keymap then return end
+    local normalized = keymap:lower()
+    local layout = normalized:find("russian", 1, true) and "RU"
+        or normalized:find("english", 1, true) and "EN"
+        or keymap:sub(1, 2):upper()
+    if vim.g.cers_keyboard_layout ~= layout then
+        vim.g.cers_keyboard_layout = layout
+        vim.cmd("redrawstatus")
+    end
+end
+
+local function update_main_keyboard()
+    vim.system({ "hyprctl", "devices", "-j" }, { text = true, timeout = 500 }, function(result)
+        vim.schedule(function()
+            if result.code ~= 0 then return end
+            local ok, devices = pcall(vim.json.decode, result.stdout)
+            if not ok or type(devices) ~= "table" or type(devices.keyboards) ~= "table" then return end
+
+            for _, device in ipairs(devices.keyboards) do
+                if device.main then
+                    main_keyboard_name = device.name
+                    set_keyboard_layout(pending_layouts[device.name] or device.active_keymap)
+                    return
+                end
+            end
+        end)
+    end)
+end
+
+local function connect_layout_socket()
+    local runtime_dir = vim.env.XDG_RUNTIME_DIR
+    local instance = vim.env.HYPRLAND_INSTANCE_SIGNATURE
+    if shutting_down or not runtime_dir or not instance then return end
+
+    local pipe = vim.uv.new_pipe(false)
+    layout_socket = pipe
+    pipe:connect(runtime_dir .. "/hypr/" .. instance .. "/.socket2.sock", function(err)
+        if err then
+            pipe:close()
+            if layout_socket == pipe then layout_socket = nil end
+            if not shutting_down then vim.defer_fn(connect_layout_socket, 2000) end
+            return
+        end
+
+        pending_layouts = {}
+        update_main_keyboard()
+        local pending = ""
+        pipe:read_start(function(read_err, chunk)
+            if read_err or not chunk then
+                pipe:read_stop()
+                if not pipe:is_closing() then pipe:close() end
+                if layout_socket == pipe then layout_socket = nil end
+                if not shutting_down then vim.defer_fn(connect_layout_socket, 2000) end
+                return
+            end
+
+            pending = pending .. chunk
+            for line in pending:gmatch("([^\n]*)\n") do
+                local event, data = line:match("^([^>]+)>>(.*)$")
+                if event == "activelayout" then
+                    local keyboard, keymap = data:match("^([^,]+),(.+)$")
+                    if keyboard and keymap then
+                        pending_layouts[keyboard] = keymap
+                        if keyboard == main_keyboard_name then
+                            vim.schedule(function() set_keyboard_layout(keymap) end)
+                        end
+                    end
+                end
+            end
+            pending = pending:match("[^\n]*$") or ""
+        end)
+    end)
+end
+
+update_main_keyboard()
+connect_layout_socket()
+vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function()
+        shutting_down = true
+        if layout_socket and not layout_socket:is_closing() then
+            layout_socket:read_stop()
+            layout_socket:close()
+        end
+    end,
+    desc = "Close Hyprland keyboard layout listener",
+})
+
 MiniStatusline.setup({
     content = {
         active = function()
@@ -115,6 +209,7 @@ MiniStatusline.setup({
                 typescriptreact = "TSX",
             }
             local filetype = filetypes[vim.bo.filetype] or vim.bo.filetype:upper()
+            local keyboard_layout = vim.g.cers_keyboard_layout or ""
             local location = string.format("%d:%d", vim.fn.line("."), vim.fn.col("."))
 
             return MiniStatusline.combine_groups({
@@ -124,6 +219,7 @@ MiniStatusline.setup({
                 "%=",
                 { hl = "CersStatusServer", strings = { npm_status() } },
                 { hl = "CersStatusFiletype", strings = { filetype } },
+                { hl = "CersStatusInfo", strings = { keyboard_layout } },
                 { hl = "CersStatusLocation", strings = { location } },
             })
         end,
@@ -131,19 +227,166 @@ MiniStatusline.setup({
 })
 
 --- dashboard ---
-require("dashboard").setup({
+local cers_logo = {
+    "  _____  ______  _____   _____",
+    " / ____| |  ____| |  __ \\ / ____|",
+    "| |      | |__   | |__) | (___",
+    "| |      |  __|  |  _  / \\___ \\ ",
+    "| |____  | |____ | | \\ \\ ____) |",
+    " \\_____| |______||_|  \\_\\_____/",
+}
+
+local clock_digits = {
+    ["0"] = { " ████ ", "██  ██", "██  ██", "██  ██", " ████ " },
+    ["1"] = { "  ██  ", " ███  ", "  ██  ", "  ██  ", "██████" },
+    ["2"] = { "█████ ", "    ██", " █████", "██    ", "██████" },
+    ["3"] = { "█████ ", "    ██", " █████", "    ██", "█████ " },
+    ["4"] = { "██  ██", "██  ██", "██████", "    ██", "    ██" },
+    ["5"] = { "██████", "██    ", "█████ ", "    ██", "█████ " },
+    ["6"] = { " █████", "██    ", "█████ ", "██  ██", " ████ " },
+    ["7"] = { "██████", "    ██", "   ██ ", "  ██  ", "  ██  " },
+    ["8"] = { " ████ ", "██  ██", " ████ ", "██  ██", " ████ " },
+    ["9"] = { " ████ ", "██  ██", " █████", "    ██", " ████ " },
+    [":"] = { "      ", "  ██  ", "      ", "  ██  ", "      " },
+}
+
+local function clock_lines()
+    local time = os.date("%H:%M")
+    local lines = { "", "", "", "", "" }
+    for char in time:gmatch(".") do
+        for row = 1, 5 do
+            lines[row] = lines[row] .. clock_digits[char][row] .. "  "
+        end
+    end
+    return lines
+end
+
+local function dashboard_header()
+    local header = { "" }
+    vim.list_extend(header, clock_lines())
+    vim.list_extend(header, { "" })
+    vim.list_extend(header, cers_logo)
+    vim.list_extend(header, { "" })
+    return header
+end
+
+local function dashboard_footer()
+    local version = vim.version()
+    local startup_ms = (vim.uv.hrtime() - vim.g.cers_nvim_start_time) / 1e6
+    local now = os.date("*t")
+    local month_names = {
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    }
+    local root = vim.fs.root(vim.uv.cwd(), { ".git" })
+    local branch = "not a Git repo"
+
+    if root then
+        local result = vim.system({ "git", "-C", root, "branch", "--show-current" }, { text = true }):wait()
+        if result.code == 0 and result.stdout ~= "" then
+            branch = vim.trim(result.stdout)
+        else
+            branch = "detached HEAD"
+        end
+    end
+
+    local first_day = os.time({ year = now.year, month = now.month, day = 1 })
+    local first_column = (tonumber(os.date("%w", first_day)) + 6) % 7
+    local days_in_month = os.date("*t", os.time({ year = now.year, month = now.month + 1, day = 0 })).day
+    local weekdays = { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" }
+    local weekday_line = {}
+    for _, weekday in ipairs(weekdays) do
+        weekday_line[#weekday_line + 1] = string.format("%-2s    ", weekday)
+    end
+    local calendar = { "", month_names[now.month] .. " " .. now.year, table.concat(weekday_line) }
+    local week = {}
+    for _ = 1, first_column do
+        week[#week + 1] = "      "
+    end
+    for day = 1, days_in_month do
+        week[#week + 1] = string.format("%2d%s   ", day, day == now.day and "*" or " ")
+        if #week == 7 then
+            calendar[#calendar + 1] = table.concat(week)
+            week = {}
+        end
+    end
+    while #week > 0 and #week < 7 do
+        week[#week + 1] = "      "
+    end
+    if #week > 0 then calendar[#calendar + 1] = table.concat(week) end
+    local footer = {
+        "",
+        "Neovim " .. version.major .. "." .. version.minor .. "." .. version.patch
+            .. "  |  Startup " .. string.format("%.0f ms", startup_ms),
+        vim.fn.fnamemodify(vim.uv.cwd(), ":~"),
+        "Git branch: " .. branch,
+    }
+    vim.list_extend(footer, calendar)
+    return footer
+end
+
+local calendar_namespace = vim.api.nvim_create_namespace("CersDashboardCalendar")
+local function set_dashboard_calendar_highlight()
+    local info = vim.api.nvim_get_hl(0, { name = "DiagnosticInfo", link = false })
+    vim.api.nvim_set_hl(0, "CersDashboardCalendar", {
+        fg = info.fg or 0x80CBC4,
+        bg = "NONE",
+        bold = true,
+    })
+end
+
+local function position_dashboard_calendar(buf)
+    buf = buf or vim.api.nvim_get_current_buf()
+    if vim.bo[buf].filetype ~= "dashboard" then return end
+
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local branch_row, month_row
+    for row, line in ipairs(lines) do
+        local content = vim.trim(line)
+        if content:match("^Git branch:") then branch_row = row end
+        if content:match("^%a+ %d%d%d%d$") then month_row = row end
+    end
+    if not branch_row or not month_row then return end
+
+    local current_gap = month_row - branch_row - 1
+    local extra_gap = math.max(0, 3 - current_gap)
+    if extra_gap == 0 then return end
+    local blanks = {}
+    for _ = 1, extra_gap do
+        blanks[#blanks + 1] = ""
+    end
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, month_row - 1, month_row - 1, false, blanks)
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].modified = false
+end
+
+local function highlight_dashboard_calendar(buf)
+    buf = buf or vim.api.nvim_get_current_buf()
+    if vim.bo[buf].filetype ~= "dashboard" then return end
+
+    vim.api.nvim_buf_clear_namespace(buf, calendar_namespace, 0, -1)
+    local in_calendar = false
+    for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+        if vim.trim(line):match("^%a+ %d%d%d%d$") then in_calendar = true end
+        if in_calendar then
+            vim.api.nvim_buf_add_highlight(buf, calendar_namespace, "CersDashboardCalendar", row - 1, 0, -1)
+        end
+    end
+end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+        set_dashboard_calendar_highlight()
+        highlight_dashboard_calendar()
+    end,
+    desc = "Restore Dashboard calendar colors after colorscheme changes",
+})
+
+local dashboard_opts = {
     theme = "hyper",
     config = {
-        header = {
-            "",
-            "  _____  ______  _____   _____",
-            " / ____| |  ____| |  __ \\ / ____|",
-            "| |      | |__   | |__) | (___",
-            "| |      |  __|  |  _  / \\___ \\ ",
-            "| |____  | |____ | | \\ \\ ____) |",
-            " \\_____| |______||_|  \\_\\_____/",
-            "",
-        },
+        header = dashboard_header(),
         shortcut = {
             {
                 icon = "  ",
@@ -170,31 +413,124 @@ require("dashboard").setup({
         packages = { enable = false },
         project = { enable = false },
         mru = { enable = true, limit = 8, icon = "  ", label = "Recent Files", cwd_only = false },
-        footer = function()
-            local version = vim.version()
-            local startup_ms = (vim.uv.hrtime() - vim.g.cers_nvim_start_time) / 1e6
-            local root = vim.fs.root(vim.uv.cwd(), { ".git" })
-            local branch = "not a Git repo"
-
-            if root then
-                local result = vim.system({ "git", "-C", root, "branch", "--show-current" }, { text = true }):wait()
-                if result.code == 0 and result.stdout ~= "" then
-                    branch = vim.trim(result.stdout)
-                else
-                    branch = "detached HEAD"
-                end
-            end
-
-            return {
-                "Neovim " .. version.major .. "." .. version.minor .. "." .. version.patch
-                    .. "  |  Startup " .. string.format("%.0f ms", startup_ms),
-                "Git branch: " .. branch,
-            }
-        end,
+        footer = dashboard_footer,
     },
+}
+
+local Dashboard = require("dashboard")
+Dashboard.setup(dashboard_opts)
+local dashboard_clock_timer = vim.uv.new_timer()
+
+local function refresh_dashboard_footer(buf)
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local branch_row
+    for row, line in ipairs(lines) do
+        if vim.trim(line):match("^Git branch:") then
+            branch_row = row
+            break
+        end
+    end
+    if not branch_row then return end
+
+    local footer_start = branch_row - 4
+    local footer = require("dashboard.utils").center_align(dashboard_footer())
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, footer_start, -1, false, footer)
+    for row = footer_start, footer_start + #footer - 1 do
+        vim.api.nvim_buf_add_highlight(buf, 0, "DashboardFooter", row, 0, -1)
+    end
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].modified = false
+    position_dashboard_calendar(buf)
+    highlight_dashboard_calendar(buf)
+end
+
+local function refresh_dashboard_clock()
+    local buf = vim.api.nvim_get_current_buf()
+    if vim.bo[buf].filetype ~= "dashboard" then
+        dashboard_clock_timer:stop()
+        return
+    end
+
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    for row, line in ipairs(lines) do
+        if line:find("_____  ______  _____   _____", 1, true) then
+            local clock_start = row - 7
+            local digits = require("dashboard.utils").center_align(clock_lines())
+            vim.bo[buf].modifiable = true
+            vim.api.nvim_buf_set_lines(buf, clock_start, clock_start + #digits, false, digits)
+            for i = 0, #digits - 1 do
+                vim.api.nvim_buf_add_highlight(buf, 0, "DashboardHeader", clock_start + i, 0, -1)
+            end
+            vim.bo[buf].modifiable = false
+            vim.bo[buf].modified = false
+            break
+        end
+    end
+
+    refresh_dashboard_footer(buf)
+end
+
+vim.api.nvim_create_autocmd("User", {
+    pattern = "DashboardLoaded",
+    callback = function()
+        local buf = vim.api.nvim_get_current_buf()
+        if vim.bo[buf].filetype ~= "dashboard" then return end
+        set_dashboard_calendar_highlight()
+        position_dashboard_calendar(buf)
+        highlight_dashboard_calendar(buf)
+        local seconds = tonumber(os.date("%S")) or 0
+        dashboard_clock_timer:stop()
+        dashboard_clock_timer:start((60 - seconds) * 1000, 60000, vim.schedule_wrap(refresh_dashboard_clock))
+    end,
+    desc = "Update the Dashboard clock every minute",
 })
 
-vim.keymap.set("n", "<Esc>", "<cmd>Dashboard<CR>", { desc = "Open Dashboard" })
+vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function() dashboard_clock_timer:stop() end,
+    desc = "Stop the Dashboard clock",
+})
+
+vim.api.nvim_create_user_command("Dashboard", function()
+    -- dashboard-nvim очищает свои настройки после закрытия стартовой страницы.
+    -- Перед повторным открытием передаём их снова, чтобы избежать отложенного чтения
+    -- настроек для буфера, который пользователь уже успел закрыть.
+    dashboard_opts.config.header = dashboard_header()
+    vim.g.cers_dashboard_calendar_gap = nil
+    Dashboard.setup(dashboard_opts)
+    Dashboard:instance()
+end, { force = true, desc = "Open Dashboard" })
+
+local dashboard_return_buf
+vim.keymap.set("n", "<Esc>", function()
+    local current_buf = vim.api.nvim_get_current_buf()
+    local filetype = vim.bo[current_buf].filetype
+
+    if filetype == "dashboard" then
+        local return_buf = dashboard_return_buf
+        if not return_buf or not vim.api.nvim_buf_is_valid(return_buf) then
+            return_buf = vim.fn.bufnr("#")
+        end
+        if return_buf > 0 and return_buf ~= current_buf and vim.api.nvim_buf_is_valid(return_buf) then
+            vim.api.nvim_set_current_buf(return_buf)
+        end
+        return
+    end
+
+    if filetype == "minifiles" then
+        MiniFiles.close()
+        return
+    end
+
+    -- Special/plugin buffers and floating windows should keep their own Esc
+    -- behavior instead of trying to replace themselves with the Dashboard.
+    if vim.bo[current_buf].buftype ~= "" or vim.api.nvim_win_get_config(0).relative ~= "" then
+        return
+    end
+
+    dashboard_return_buf = current_buf
+    vim.cmd("Dashboard")
+end, { desc = "Toggle Dashboard" })
 
 vim.keymap.set("n", "<leader>bd", function() MiniBufremove.delete() end, { desc = "Close buffer (keep window)" })
 
