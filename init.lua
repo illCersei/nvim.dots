@@ -10,6 +10,7 @@ require("treesitter")
 require("lsp")
 require("cf")
 require("web")
+require("html")
 require("golang")
 
 vim.cmd.colorscheme("nightfox")
