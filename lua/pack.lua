@@ -594,6 +594,9 @@ require("mini.pairs").setup()
 -- <div> сам закрывается </div>, переименование открывающего тега меняет и закрывающий
 require("nvim-ts-autotag").setup()
 
+--- mini cursorword ---
+require("mini.cursorword").setup()
+
 --- mini hipatterns ---
 -- #ff0000 подсвечивается своим цветом, TODO/FIXME/HACK/NOTE выделяются
 local hipatterns = require("mini.hipatterns")
