@@ -502,7 +502,7 @@ vim.api.nvim_create_user_command("Dashboard", function()
 end, { force = true, desc = "Open Dashboard" })
 
 local dashboard_return_buf
-vim.keymap.set("n", "<Esc>", function()
+vim.keymap.set("n", "<leader><Esc>", function()
     local current_buf = vim.api.nvim_get_current_buf()
     local filetype = vim.bo[current_buf].filetype
 
