@@ -51,7 +51,46 @@ end, { desc = "Toggle into currently opened file" })
 
 --- mini tabline / bracketed / bufremove ---
 -- вкладки буферов сверху, ]b/[b для переключения, закрытие без ломки окон
-require("mini.tabline").setup()
+local function listed_buffers()
+    return vim.tbl_filter(function(buf)
+        return vim.bo[buf].buflisted
+    end, vim.api.nvim_list_bufs())
+end
+
+local function select_buffer_number(number)
+    local buf = listed_buffers()[number]
+    if buf then
+        vim.api.nvim_set_current_buf(buf)
+    else
+        vim.notify("No buffer at position " .. number, vim.log.levels.INFO)
+    end
+end
+
+local MiniTabline = require("mini.tabline")
+MiniTabline.setup({
+    format = function(buf, label)
+        local number = vim.fn.index(listed_buffers(), buf) + 1
+        return MiniTabline.default_format(buf, number .. ": " .. label)
+    end,
+})
+
+for number = 1, 9 do
+    vim.keymap.set("n", "<leader>" .. number, function()
+        select_buffer_number(number)
+    end, { desc = "Go to buffer " .. number })
+end
+
+vim.keymap.set("n", "<leader>bn", function()
+    vim.ui.input({ prompt = "Buffer number: " }, function(input)
+        if input == nil then return end
+        local number = tonumber(input)
+        if not number or number < 1 or number % 1 ~= 0 then
+            vim.notify("Enter a positive whole number", vim.log.levels.INFO)
+            return
+        end
+        select_buffer_number(number)
+    end)
+end, { desc = "Go to buffer by number" })
 require("mini.bracketed").setup()
 require("mini.bufremove").setup()
 
