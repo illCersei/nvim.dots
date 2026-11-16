@@ -552,6 +552,12 @@ require("mini.cmdline").setup({
 --- mini surround ---
 -- префикс gs вместо s, чтобы не ломать встроенный `s`
 require("mini.surround").setup({
+    custom_surroundings = {
+        -- JSX member names (React.Fragment), custom elements and namespaces.
+        t = {
+            input = { '<([%w_.:%-]-)%f[^<%w_.:%-][^<>]->.-</%1>', '^<.->().*()</[^/]->$' },
+        },
+    },
     mappings = {
         add = "gsa",
         delete = "gsd",
@@ -620,6 +626,13 @@ require("mini.completion").setup({
         auto_setup = true,
     }
 })
+
+vim.keymap.set("i", "<CR>", function()
+    if vim.fn.pumvisible() == 1 and vim.fn.complete_info().selected ~= -1 then
+        return "<C-y>"
+    end
+    return MiniPairs.cr()
+end, { expr = true, desc = "Accept completion or insert newline" })
 
 --- mini snippets ---
 local MiniSnippets = require("mini.snippets")
