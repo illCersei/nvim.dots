@@ -7,6 +7,7 @@ vim.pack.add({
     "https://github.com/rafamadriz/friendly-snippets",
     { src = "https://github.com/nvim-treesitter/nvim-treesitter", branch = "main" },
     "https://github.com/neovim/nvim-lspconfig",
+    "https://github.com/DerekCorniello/unreal-sense.nvim",
     "https://github.com/mason-org/mason.nvim",
     "https://github.com/stevearc/conform.nvim",
     "https://github.com/windwp/nvim-ts-autotag",
@@ -68,6 +69,7 @@ end
 
 local MiniTabline = require("mini.tabline")
 MiniTabline.setup({
+    tabpage_section = "none",
     format = function(buf, label)
         local number = vim.fn.index(listed_buffers(), buf) + 1
         return MiniTabline.default_format(buf, number .. ": " .. label)
@@ -309,9 +311,10 @@ local function dashboard_header()
     return header
 end
 
+local dashboard_startup_ms
 local function dashboard_footer()
     local version = vim.version()
-    local startup_ms = (vim.uv.hrtime() - vim.g.cers_nvim_start_time) / 1e6
+    dashboard_startup_ms = dashboard_startup_ms or (vim.uv.hrtime() - vim.g.cers_nvim_start_time) / 1e6
     local now = os.date("*t")
     local month_names = {
         "January", "February", "March", "April", "May", "June",
@@ -356,7 +359,7 @@ local function dashboard_footer()
     local footer = {
         "",
         "Neovim " .. version.major .. "." .. version.minor .. "." .. version.patch
-            .. "  |  Startup " .. string.format("%.0f ms", startup_ms),
+            .. "  |  Startup " .. string.format("%.0f ms", dashboard_startup_ms),
         vim.fn.fnamemodify(vim.uv.cwd(), ":~"),
         "Git branch: " .. branch,
     }
@@ -510,19 +513,29 @@ local function refresh_dashboard_clock()
     refresh_dashboard_footer(buf)
 end
 
-vim.api.nvim_create_autocmd("User", {
-    pattern = "DashboardLoaded",
-    callback = function()
+local function resume_dashboard_clock()
+    vim.schedule(function()
         local buf = vim.api.nvim_get_current_buf()
         if vim.bo[buf].filetype ~= "dashboard" then return end
         set_dashboard_calendar_highlight()
-        position_dashboard_calendar(buf)
-        highlight_dashboard_calendar(buf)
+        refresh_dashboard_clock()
         local seconds = tonumber(os.date("%S")) or 0
         dashboard_clock_timer:stop()
         dashboard_clock_timer:start((60 - seconds) * 1000, 60000, vim.schedule_wrap(refresh_dashboard_clock))
+    end)
+end
+
+vim.api.nvim_create_autocmd("User", {
+    pattern = "DashboardLoaded",
+    callback = resume_dashboard_clock,
+    desc = "Refresh the loaded Dashboard and start its clock",
+})
+
+vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained", "VimResume" }, {
+    callback = function()
+        if vim.bo.filetype == "dashboard" then resume_dashboard_clock() end
     end,
-    desc = "Update the Dashboard clock every minute",
+    desc = "Refresh Dashboard on return or resume after inactivity",
 })
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
@@ -663,6 +676,30 @@ require("kulala").setup({ global_keymaps = true })
 require("mini.completion").setup({
     lsp_completion = {
         auto_setup = true,
+        process_items = function(items, base)
+            local line = vim.api.nvim_get_current_line()
+            local col = vim.api.nvim_win_get_cursor(0)[2]
+            local prefix = line:sub(1, col)
+            local opening = prefix:match('^%s*#%s*include%s*(["<])[^">]*$')
+            local closing = opening == '"' and '"' or opening == '<' and '>' or nil
+            -- clangd's edit can replace an existing closing delimiter, but
+            -- mini.completion inserts plain items only before the cursor.
+            if closing and line:sub(col + 1, col + 1) == closing then
+                items = vim.deepcopy(items)
+                for _, item in ipairs(items) do
+                    if item.insertTextFormat ~= 2 then
+                        local edit = item.textEdit
+                        if edit and edit.newText and edit.newText:sub(-1) == closing then
+                            edit.newText = edit.newText:sub(1, -2)
+                        end
+                        if item.insertText and item.insertText:sub(-1) == closing then
+                            item.insertText = item.insertText:sub(1, -2)
+                        end
+                    end
+                end
+            end
+            return MiniCompletion.default_process_items(items, base)
+        end,
     }
 })
 
