@@ -50,3 +50,5 @@ completion.config.lsp_completion.process_items = function(items, base)
     end
     return process_items(items, base)
 end
+
+require("unreal_build")

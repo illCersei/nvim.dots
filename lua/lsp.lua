@@ -1,6 +1,7 @@
 require("mason").setup()
 
 vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { desc = "Go to definition" })
+vim.keymap.set({ "n", "x" }, "<leader>ca", vim.lsp.buf.code_action, { desc = "Code actions" })
 -- фронт форматирует prettierd, остальное как раньше через LSP
 require("conform").setup({
     formatters_by_ft = {
